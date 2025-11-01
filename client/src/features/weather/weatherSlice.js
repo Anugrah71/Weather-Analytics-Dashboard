@@ -1,6 +1,5 @@
 import { createSlice } from "@reduxjs/toolkit";
 import { fetchWeather, fetchForecast } from "./weatherThunks";
-import { fetchModule } from "vite";
 
 const weatherSlice = createSlice({
   name: "weather",
@@ -30,7 +29,7 @@ const weatherSlice = createSlice({
       .addCase(fetchWeather.pending, (state) => {
         state.state = "loading";
       })
-      .addCase(fetchWeather.fullfilled, (state, action) => {
+      .addCase(fetchWeather.fulfilled, (state, action) => {
         state.status = "succeeded";
         const city = action.payload.location.name;
         const existing = state.cities.find((c) => c.name == city);
@@ -44,5 +43,5 @@ const weatherSlice = createSlice({
   },
 });
 
-export const { toggleUnit, addFavorite, removeFavorite } = weatherSlice.action;
+export const { toggleUnit, addFavorite, removeFavorite } = weatherSlice.actions;
 export default weatherSlice.reducer;
