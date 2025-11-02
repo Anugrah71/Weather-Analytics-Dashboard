@@ -125,14 +125,14 @@ const DetailedView = ({ city, onClose, forecastdays, current }) => {
                 </div>
               </div>
               <div className="text-center">
-                <img src="./public/uv.png" alt="" className="mx-auto mb-2 w-6 h-6" />{" "}
+                <img src="/uv.png" alt="" className="mx-auto mb-2 w-6 h-6" />{" "}
                 <div className="text-xs sm:text-sm text-gray-600">Wind</div>
                 <div className="font-semibold text-sm sm:text-base">
                   {current.wind_kph} km/h
                 </div>
               </div>
               <div className="text-center">
-                <img src="./public/air-quality.png" alt="" className="mx-auto mb-2 w-6 h-6" />{" "}
+                <img src="/air-quality.png" alt="" className="mx-auto mb-2 w-6 h-6" />{" "}
                 <div className="text-xs sm:text-sm text-gray-600">Wind</div>
                 <div className="font-semibold text-sm sm:text-base">
                   {current.wind_kph} km/h
