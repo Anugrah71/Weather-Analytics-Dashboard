@@ -10,7 +10,7 @@ import WindTrendChart from "./Charts/WindTrendChart";
 const convertTemp = (temp, unit) =>
   unit === "fahrenheit" ? (temp * 9) / 5 + 32 : temp;
 
-const DetailedView = ({ city, onClose, forecastdays, current }) => {
+const DetailedView = ({ city, onClose, forecastdays, current, history }) => {
   const { unit } = useSelector((state) => state.weather);
 
   const icon = current?.condition?.icon;
@@ -22,31 +22,6 @@ const DetailedView = ({ city, onClose, forecastdays, current }) => {
     return <div className="p-6 text-center text-gray-600">Loading data...</div>;
   }
   console.log("DetailedView forecastdays:", forecastdays);
-
-  const [historyData, setHistoryData] = useState([]);
-
-  useEffect(() => {
-    const fetchPastWeek = async () => {
-      const days = [];
-      for (let i = 1; i <= 7; i++) {
-        const date = new Date();
-        date.setDate(date.getDate() - i);
-        const iso = date.toISOString().split("T")[0];
-        const res = await fetch(`/api/weather/history?q=${city}&date=${iso}`);
-        const data = await res.json();
-        if (data?.forecast?.forecastday?.[0]) {
-          const dayData = data.forecast.forecastday[0].day;
-          days.push({
-            date: iso,
-            max: dayData.maxtemp_c,
-            min: dayData.mintemp_c,
-          });
-        }
-      }
-      setHistoryData(days.reverse());
-    };
-    fetchPastWeek();
-  }, [city]);
 
   return (
     <div className="fixed inset-0 bg-black bg-opacity-50 z-50 overflow-y-auto">
