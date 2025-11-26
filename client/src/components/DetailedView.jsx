@@ -12,6 +12,7 @@ const convertTemp = (temp, unit) =>
 
 const DetailedView = ({ city, onClose, forecastdays, current, history }) => {
   const { unit } = useSelector((state) => state.weather);
+  console.log("History:", history);
 
   const icon = current?.condition?.icon;
   console.log("current ", current);
