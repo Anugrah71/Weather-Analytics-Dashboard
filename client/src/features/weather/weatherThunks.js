@@ -3,6 +3,7 @@ import {
   getCurrentWeather,
   getForecast,
   searchCities,
+  getHistory,
 } from "../../api/weather";
 
 export const fetchWeather = createAsyncThunk(
