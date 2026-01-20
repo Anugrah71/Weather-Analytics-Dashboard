@@ -46,8 +46,8 @@ export const fetchWeatherHistory = createAsyncThunk(
 
 export const fetchSearchResults = createAsyncThunk(
   "weather/fetchSearchResults",
-  async (query) => {
-    const res = await searchCities(query);
+  async (citySearch) => {
+    const res = await searchCities(citySearch);
     return res;
   }
 );

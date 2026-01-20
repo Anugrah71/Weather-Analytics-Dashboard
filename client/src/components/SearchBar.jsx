@@ -5,27 +5,28 @@ import { Search } from "lucide-react";
 
 const SearchBar = () => {
   const dispatch = useDispatch();
-  const [query, setQuery] = useState("");
+  const [citySearch, setCitySearch] = useState("");
   const { searchResults } = useSelector((state) => state.weather);
+
 
   useEffect(() => {
     const timeout = setTimeout(() => {
-      if (query.length > 2) {
-        dispatch(fetchSearchResults(query));
+      if (citySearch.length > 2) {
+        dispatch(fetchSearchResults(citySearch));
       }
     }, 500);
     return () => clearTimeout(timeout);
-  }, [query, dispatch]);
+  }, [citySearch, dispatch]);
 
   const handleSelect = (city) => {
     dispatch(fetchWeather(city));
-    setQuery("");
+    setCitySearch("");
   };
 
   const handleSearch = () => {
-    if (!query.trim()) return;
-    dispatch(fetchWeather(query.trim()));
-    setQuery("");
+    if (!citySearch.trim()) return;
+    dispatch(fetchWeather(citySearch.trim()));
+    setCitySearch("");
   };
 
   return (
@@ -38,8 +39,8 @@ const SearchBar = () => {
 
         <input
           type="text"
-          value={query}
-          onChange={(e) => setQuery(e.target.value)}
+          value={citySearch}
+          onChange={(e) => setCitySearch(e.target.value)}
           className="w-full pl-10 pr-4 py-2 border border-gray-300 rounded-lg text-black focus:outline-none focus:ring-2 focus:ring-blue-500"
           placeholder="Search for a city..."
         />
@@ -52,7 +53,7 @@ const SearchBar = () => {
       </div>
 
       {/* Dropdown results */}
-      {query.length > 2 && searchResults.length > 0 && (
+      {citySearch.length > 2 && searchResults.length > 0 && (
         <ul
           className="absolute top-full left-0 mt-2 bg-white text-black rounded-lg shadow-lg w-full z-50 max-h-60 overflow-y-auto border border-gray-200"
         >

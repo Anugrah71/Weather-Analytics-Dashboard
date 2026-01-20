@@ -1,6 +1,6 @@
 const express = require("express");
 const { getCache, setCache } = require("../utils/cache");
-
+const axios = require("axios");
 const router = express.Router();
 
 const getWeatherCondition = (code) => {
@@ -32,25 +32,41 @@ const getWeatherCondition = (code) => {
 };
 //  Current weather
 router.get("/current", async (req, res) => {
+  const { city } = req.query;
+  if (!city) return res.status(400).json({ error: "Missing city name" });
+  const cacheKey = `current_${city.toLocaleLowerCase()}`;
+
   try {
-    const { q } = req.query;
-    if (!q) return res.status(400).json({ error: "Missing city name" });
-
-    const cacheKey = `current_${q}`;
-    const cached = getCache(cacheKey);
-    if (cached) return res.json({ source: "cache", ...cached });
-
-    const geoRes = await fetch(
-      `https://geocoding-api.open-meteo.com/v1/search?name=${q}&count=1&language=en&format=json`
+    const cachedData = await getCache(cacheKey);
+    if (cachedData) {
+      console.log(`current cache hit: ${city}`);
+      return res.json(cachedData);
+    }
+    console.log("Current weather Chache miss: Fetching form weatherapi");
+    console.log(city);
+    const geolocationData = await axios.get(
+      `https://geocoding-api.open-meteo.com/v1/search`,
+      { params: { name: city, count: 1 } },
     );
-    const geoData = await geoRes.json();
-    if (!geoData.results)
+    // console.log(geolocationData.data)
+    if (!geolocationData.data.results)
       return res.status(404).json({ error: "City not found" });
-    const { latitude, longitude, name, country } = geoData.results[0];
-
-    const url = `https://api.open-meteo.com/v1/forecast?latitude=${latitude}&longitude=${longitude}&current=temperature_2m,relative_humidity_2m,weather_code,wind_speed_10m,pressure_msl,visibility&timezone=auto`;
-    const response = await fetch(url);
-    const data = await response.json();
+    const { latitude, longitude, name, country } =
+      geolocationData.data.results[0];
+    // console.log("resule are here", latitude, longitude, country, name);
+    const responseData = await axios.get(
+      `https://api.open-meteo.com/v1/forecast`,
+      {
+        params: {
+          latitude,
+          longitude,
+          current:
+            "temperature_2m,relative_humidity_2m,weather_code,wind_speed_10m,pressure_msl,visibility",
+          timezone: "auto",
+        },
+      },
+    );
+    const data = responseData.data;
 
     const formattedData = {
       location: { name, country },
@@ -63,10 +79,12 @@ router.get("/current", async (req, res) => {
         vis_km: data.current.visibility / 1000,
       },
     };
+    // console.log("formattedData",formattedData);
 
-    setCache(cacheKey, formattedData);
+    await setCache(cacheKey, formattedData);
     res.json({ source: "api", ...formattedData });
   } catch (err) {
+    console.error("Server Error:", err.message);
     res.status(500).json({ error: err.message });
   }
 });
@@ -74,21 +92,28 @@ router.get("/current", async (req, res) => {
 //  Forecast (7 days + hourly)
 router.get("/forecast", async (req, res) => {
   try {
-    const { q, days = 7 } = req.query;
-
-    const geoRes = await fetch(
-      `https://geocoding-api.open-meteo.com/v1/search?name=${q}&count=1&language=en&format=json`
+    const { city, days = 7 } = req.query;
+    const cacheKey = `forecast_${city.toLowerCase()}`;
+    const cachedData = await getCache(cacheKey);
+    if (cachedData) {
+      console.log(`Forecast cache hit:${city}`);
+      return res.json(cachedData);
+    }
+    console.log(`Forecast cache miss: Fetching ${city}`);
+    const geolocationData = await axios.get(
+      `https://geocoding-api.open-meteo.com/v1/search`,
+      { params: { name: city, count: 1 } },
     );
-    const geoData = await geoRes.json();
+    const forecastData = geolocationData.data;
 
-    if (!geoData.results || geoData.results.length === 0) {
+    if (!forecastData.results) {
       return res.status(404).json({ error: "City not found" });
     }
-    const { latitude, longitude, name, country } = geoData.results[0];
+    const { latitude, longitude, name, country } = forecastData.results[0];
 
     const weatherUrl = `https://api.open-meteo.com/v1/forecast?latitude=${latitude}&longitude=${longitude}&current=temperature_2m,weather_code,wind_speed_10m,relative_humidity_2m,pressure_msl,visibility&daily=weather_code,temperature_2m_max,temperature_2m_min,wind_speed_10m_max,sunrise,sunset,precipitation_probability_max,uv_index_max&hourly=temperature_2m,precipitation_probability,weather_code&forecast_days=${days}&timezone=auto`;
-    const weatherRes = await fetch(weatherUrl);
-    const data = await weatherRes.json();
+    const weatherRes = await axios.get(weatherUrl);
+    const data = weatherRes.data;
 
     if (data.error) {
       throw new Error(`Open-Meteo API Error: ${data.reason}`);
@@ -132,7 +157,7 @@ router.get("/forecast", async (req, res) => {
         })),
       },
     };
-
+    await setCache(cacheKey, formattedData);
     res.json({ source: "api", ...formattedData });
   } catch (err) {
     console.error("Forecast Error:", err.message);
@@ -143,22 +168,34 @@ router.get("/forecast", async (req, res) => {
 //  Historical Data
 router.get("/history", async (req, res) => {
   try {
-    const { q, date } = req.query;
-    if (!q || !date)
+    const { city, date } = req.query;
+    if (!city || !date)
       return res.status(400).json({ error: "Missing city name or date" });
 
-    const cacheKey = `history_${q}_${date}`;
-    const cached = getCache(cacheKey);
-    if (cached) return res.json({ source: "cache", ...cached });
+    const cacheKey = `history_${city.toLocaleLowerCase()}`;
+    const cached = await getCache(cacheKey);
+    // console.log("hisote",cached)
+    if (cached) {
+      console.log(`History cache hit: ${city}`);
+      return res.json({ source: "cache", ...cached });
+    }
+    console.log(`History cache miss: fetching from weatherapi`);
 
     const apiKey = process.env.WEATHER_API_KEY;
-    const url = `https://api.weatherapi.com/v1/history.json?key=${apiKey}&q=${q}&dt=${date}`;
 
-    const response = await fetch(url);
-    if (!response.ok) throw new Error(`API error: ${response.status}`);
-    const data = await response.json();
+    const weatherRes = await axios.get(
+      `https://api.weatherapi.com/v1/history.json`,
+      {
+        params: {
+          key: apiKey,
+          q: city,
+          dt: date,
+        },
+      },
+    );
+    const data = weatherRes.data;
 
-    setCache(cacheKey, data);
+    await setCache(cacheKey, data);
     res.json({ source: "api", ...data });
   } catch (err) {
     console.error("History error:", err);
@@ -171,22 +208,26 @@ router.get("/history", async (req, res) => {
 // Search / Autocomplete
 router.get("/search", async (req, res) => {
   try {
-    const { q } = req.query;
-    if (!q) return res.status(400).json({ error: "Missing query" });
+    const { city } = req.query;
+    if (!city) return res.status(400).json({ error: "Missing query" });
 
-    const cacheKey = `search_${q}`;
-    const cached = getCache(cacheKey);
-    if (cached) return res.json({ source: "cache", ...cached });
-
+    const cacheKey = `search_${city.toLocaleLowerCase().trim()}`;
+    const cached = await getCache(cacheKey);
+    if (cached) {
+      console.log(`Search Cache Hit: ${city}`);
+      return res.json({ source: "cache", results: cached });
+    }
+    console.log(`Search Cache Miss: Fetching`);
     const apiKey = process.env.WEATHER_API_KEY;
-    const url = `https://api.weatherapi.com/v1/search.json?key=${apiKey}&q=${q}`;
-    console.log("Fetching search:", url);
+    const searchRes = await axios.get(
+      `https://api.weatherapi.com/v1/search.json`,
+      {
+        params: { key: apiKey, q: city },
+      },
+    );
+    const data = await searchRes.data;
 
-    const response = await fetch(url);
-    if (!response.ok) throw new Error(`API error: ${response.status}`);
-    const data = await response.json();
-
-    setCache(cacheKey, data);
+    await setCache(cacheKey, data, 86400);
     res.json({ source: "api", results: data });
   } catch (err) {
     console.error("Search error:", err);
